@@ -43,7 +43,7 @@ uv sync
 | `01_geodaten.ipynb` | Notebook: Ortsteile, Stadtbezirke und die Linie 8 auf der Karte |
 | `karte_linie_8.html` | Interaktive Karte aus `01_geodaten.ipynb` |
 | `02_aufbereitung.ipynb` | Notebook: bringt alle kleinräumigen Statistiken in ein einheitliches langes Format |
-| `satellit_daten.py` | Wertet Landsat-Satellitendaten aus: Oberflächentemperatur und Vegetation je Ortsteil |
+| `satellit_daten.py` | Wertet Landsat-Satellitendaten aus: Oberflächentemperatur und Vegetation je Stadtteil |
 | `test_dashboard.py` | Erzeugt das Test-Dashboard (Daten zusammenstellen, Vorlage befüllen) |
 | `test_dashboard_vorlage.html` | HTML-Vorlage des Dashboards: Layout, Diagramme, Karten, Bedienung |
 | `test_dashboard.html` | Ergebnis von `test_dashboard.py`, eine einzelne Datei zum Öffnen im Browser |
@@ -71,7 +71,7 @@ Alle aufbereiteten Daten haben dasselbe lange Format: eine Zeile pro Gebiet, Mer
 uv run python test_dashboard.py
 ```
 
-Das Skript bestimmt die Haltestellen der Linie 8, stellt die Daten für ihre 13 Ortsteile zusammen und schreibt alles in eine einzelne HTML-Datei (`test_dashboard.html`, rund 0,1 MB). Sie öffnet sich im Browser und braucht nur für Plotly eine Internetverbindung.
+Das Skript bestimmt die Haltestellen der Linie 8, stellt die Daten für ihre 13 Stadtteile zusammen und schreibt alles in eine einzelne HTML-Datei (`test_dashboard.html`, rund 0,1 MB). Sie öffnet sich im Browser und braucht nur für Plotly eine Internetverbindung.
 
 ### Funktionen
 
@@ -81,7 +81,7 @@ Das Skript bestimmt die Haltestellen der Linie 8, stellt die Daten für ihre 13 
 - **Kennzahlen im Kopf:** Gipfel, Tal, Faktor zwischen beiden und Wert der Gesamtstadt.
 - **Hervorhebung:** Beim Darüberfahren wird die Haltestelle in allen Diagrammen gleichzeitig markiert.
 - **Minikarte:** zeigt die aktuelle Haltestelle und lässt sich selbst überfahren. Umschaltbar zwischen dem Ausschnitt der Linie und ganz Leipzig.
-- **Entwicklung über die Zeit:** Ein Ortsteil im Vergleich zur Gesamtstadt. Gewählt wird er per Klick auf eine zweite Karte, auf eine Haltestelle oder über eine Liste.
+- **Entwicklung über die Zeit:** Ein Stadtteil im Vergleich zur Gesamtstadt. Gewählt wird er per Klick auf eine zweite Karte, auf eine Haltestelle oder über eine Liste.
 - **Bundestagswahl** als gestapelte Säulen je Haltestelle, mit eigenem Tooltip für alle Parteien.
 - **Fußnoten**, die sich an die gewählten Kennzahlen anpassen, und eine Tabelle mit allen Werten.
 - Helles und dunkles Design folgen der Systemeinstellung. Die aktuelle Auswahl steht in der Adresszeile und lässt sich als Link speichern.
@@ -117,12 +117,13 @@ Die Auswahl steht als Liste `KENNZAHLEN` oben in `test_dashboard.py`. Ein weiter
 Diese Punkte erscheinen auch als Fußnoten im Dashboard.
 
 - **Einwohner** zählen nur **Hauptwohnsitze** (Datensatz Kategorie 2 / Rubrik 1). Der ähnliche Datensatz „Wohnberechtigte Einwohner“ enthält zusätzlich Nebenwohnsitze und wird bewusst nicht verwendet.
-- **Haltestelle = Ortsteil:** Die Statistik liegt nur je Ortsteil vor. Haltestellen im selben Ortsteil haben denselben Wert, die Kurven verlaufen in Stufen. Die Zuordnung erfolgt räumlich und nicht über den Namen: Die Haltestelle „Grünau-Nord“ liegt zum Beispiel im Ortsteil Schönau.
+- **Begriff:** „Stadtteil“ meint die amtlichen Ortsteile der Stadt Leipzig, nicht die größeren Stadtbezirke. In den Quelldaten und im Code heißen sie `Ortsteil`.
+- **Haltestelle = Stadtteil:** Die Statistik liegt nur je Stadtteil vor. Haltestellen im selben Stadtteil haben denselben Wert, die Kurven verlaufen in Stufen. Die Zuordnung erfolgt räumlich und nicht über den Namen: Die Haltestelle „Grünau-Nord“ liegt zum Beispiel im Stadtteil Schönau.
 - **Linienführung:** Der Fahrplan ist von Dezember 2022 und wird für alle Jahre verwendet.
-- **Ortsteilgrenzen** wurden 2006, 2012 und 2014 angepasst, ältere Werte wurden nicht zurückgerechnet. Am deutlichsten ist das in Heiterblick: Dort verschwinden 2013 rund 300 Einwohner an Engelsdorf. Die Grenzjahre sind in den Zeitdiagrammen markiert.
+- **Stadtteilgrenzen** wurden 2006, 2012 und 2014 angepasst, ältere Werte wurden nicht zurückgerechnet. Am deutlichsten ist das in Heiterblick: Dort verschwinden 2013 rund 300 Einwohner an Engelsdorf. Die Grenzjahre sind in den Zeitdiagrammen markiert.
 - **Sonderzeichen der Quelle:** `-` bedeutet „nichts vorhanden“ und wird zu 0. `.` (unbekannt oder Datenschutz) und `x` (Angabe nicht sinnvoll, z. B. vor Eingemeindungen) werden zu „fehlend“. Das Originalzeichen bleibt in der Spalte `zeichen` erhalten. Quelle: Zeichenerklärung im [Ortsteilkatalog 2016](https://static.leipzig.de/fileadmin/mediendatenbank/leipzig-de/Stadt/02.1_Dez1_Allgemeine_Verwaltung/12_Statistik_und_Wahlen/Raumbezug/Ortsteilkatalog_2016.pdf).
 - **Einheiten** liefert die Quelle nicht mit. Sie sind nach den Merkmalsbeschreibungen ergänzt.
-- **Umfragedaten** (\*) sind eine Stichprobe und werden nur alle zwei Jahre erhoben. Pro Ortsteil antworten wenige Menschen, deshalb schwanken die Werte stärker.
+- **Umfragedaten** (\*) sind eine Stichprobe und werden nur alle zwei Jahre erhoben. Pro Stadtteil antworten wenige Menschen, deshalb schwanken die Werte stärker.
 - **Migrationshintergrund:** umfasst Ausländer und Deutsche mit Migrationshintergrund, auch in Deutschland geborene Kinder mit mindestens einem zugewanderten Elternteil. Die Quelle nennt das Merkmal „Migrantenanteil“. Der Begriff „Einwanderungsgeschichte“ (seit 2023 beim Statistischen Bundesamt) ist enger gefasst.
 - **Straftaten** werden am Tatort gezählt, aber auf die Einwohner bezogen. Im Zentrum mit wenigen Einwohnern ergeben sich deshalb sehr hohe Werte, rund 2.800 je 1.000 Einwohner.
 - **Wahlen:** „DIE LINKE“ umfasst bis 2005 die Vorgänger PDS bzw. Linkspartei.PDS. „Sonstige“ ist der Rest zu 100 %. Ist eine Partei nicht angetreten, ist ihr Wert leer und nicht 0.
@@ -180,8 +181,8 @@ Das Skript wertet alle Landsat-8/9-Aufnahmen aus den Sommermonaten (Juni bis Aug
 
 - Wolken, Wolkenschatten und Schnee werden pixelgenau entfernt.
 - Eine Aufnahme zählt nur, wenn mindestens 80 % der Stadt wolkenfrei sind. Ein Gebiet zählt nur, wenn mindestens 70 % seiner Fläche gültig sind.
-- Je Ortsteil, Stadtbezirk und Gesamtstadt entstehen vier Merkmale: mittlere **Oberflächentemperatur**, **Abweichung vom Stadtmittel** am selben Tag, **Vegetationsindex (NDVI)** und Anzahl der ausgewerteten Aufnahmen.
-- Gerechnet wird auf die heutigen Ortsteilgrenzen.
+- Je Stadtteil, Stadtbezirk und Gesamtstadt entstehen vier Merkmale: mittlere **Oberflächentemperatur**, **Abweichung vom Stadtmittel** am selben Tag, **Vegetationsindex (NDVI)** und Anzahl der ausgewerteten Aufnahmen.
+- Gerechnet wird auf die heutigen Stadtteilgrenzen.
 
 Die Abweichung vom Stadtmittel macht Jahre mit unterschiedlichem Wetter vergleichbar. Gemessen wird die Temperatur der Oberflächen (Dächer, Asphalt, Wiesen) am Vormittag, nicht die Lufttemperatur. Abgeerntete Felder am Stadtrand werden besonders heiß. 2013 und 2021 gab es keine verwendbare Aufnahme.
 
@@ -199,4 +200,4 @@ So wird die Linie bestimmt (gilt auch für das Dashboard):
 
 1. **Linie finden:** über Liniennummer und Verkehrsunternehmen. Der GTFS-Feed enthält den ganzen Mitteldeutschen Verkehrsverbund, es gibt also zum Beispiel auch eine Linie 8 in Halle.
 2. **Haltestellen bestimmen:** Vorlage ist die längste Haltestellenfolge, die am häufigsten gefahren wird. Kurzfahrten und seltene Varianten fallen so heraus.
-3. **Ortsteile zuordnen:** Jede Haltestelle wird per räumlichem Join dem Ortsteil zugeordnet, in dem sie liegt.
+3. **Stadtteile zuordnen:** Jede Haltestelle wird per räumlichem Join dem Stadtteil zugeordnet, in dem sie liegt.

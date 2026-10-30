@@ -199,6 +199,18 @@
   }
 
   details { margin-top: 8px; }
+  .detail { margin-top: 0; }
+  .detail > summary {
+    list-style: none; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center;
+    min-height: 44px; color: var(--text-1); font-size: 15px; padding: 0;
+  }
+  .detail > summary::-webkit-details-marker { display: none; }
+  .detail > summary::after { content: "▾"; grid-column: 2; grid-row: 1 / span 2; color: var(--text-2); }
+  .detail[open] > summary::after { content: "▴"; }
+  .detail > summary p { grid-column: 1; color: var(--text-2); font-size: 13px; }
+  .detail[open] > summary { margin-bottom: 12px; }
+  .detail[open] .aufklapp-hinweis, .nur-kompakt, body.kompakt .nur-breit { display: none; }
+  body.kompakt .nur-kompakt { display: inline; }
   summary { cursor: pointer; color: var(--text-2); font-size: 13px; }
   .tabelle-rahmen { overflow-x: auto; margin-top: 8px; }
   table { border-collapse: collapse; width: 100%; font-size: 13px; }
@@ -258,7 +270,7 @@
     <div class="waehler-kopf" id="waehler-kopf"></div>
     <button type="button" class="waehler-schalter" id="waehler-schalter" aria-expanded="false"></button>
     <div class="themen" id="themen"></div>
-    <div class="waehler-legende">* beruht auf der Kommunalen Bürgerumfrage: eine Stichprobe, nur alle zwei Jahre erhoben, Werte je Ortsteil schwanken stärker</div>
+    <div class="waehler-legende">* beruht auf der Kommunalen Bürgerumfrage: eine Stichprobe, nur alle zwei Jahre erhoben, Werte je Stadtteil schwanken stärker</div>
   </div>
 
   <div class="filter">
@@ -282,7 +294,7 @@
   <section class="karte">
     <header class="mit-karte">
       <div>
-        <h2>Entlang der Linie 8</h2>
+        <h2 id="titel-linie"></h2>
         <p id="unter-linie"></p>
       </div>
       <figure class="minikarte zu">
@@ -302,24 +314,25 @@
     </details>
   </section>
 
-  <section class="karte">
+  <details class="karte detail" id="detail">
+    <summary>
+      <h2 id="titel-zeit"></h2>
+      <p>Verlauf aller Jahre, im Vergleich zur Gesamtstadt, wenn vergleichbar. <span class="aufklapp-hinweis">Zum Aufklappen hier auswählen.</span></p>
+    </summary>
     <header class="mit-karte">
-      <div>
-        <h2 id="titel-zeit"></h2>
-        <p>im Vergleich zur Gesamtstadt, wenn vergleichbar</p>
-      </div>
+      <div></div>
       <figure class="minikarte zu">
-        <button type="button" class="karte-schalter" aria-expanded="false">Ortsteil auf der Karte wählen</button>
-        <svg id="auswahlkarte" role="img" aria-label="Karte zur Auswahl des Ortsteils"></svg>
-        <figcaption id="auswahlkarte-text">Ortsteil per Klick auf die Karte wählen.</figcaption>
+        <button type="button" class="karte-schalter" aria-expanded="false">Stadtteil auf der Karte wählen</button>
+        <svg id="auswahlkarte" role="img" aria-label="Karte zur Auswahl des Stadtteils"></svg>
+        <figcaption id="auswahlkarte-text">Stadtteil per Klick auf die Karte wählen.</figcaption>
         <div class="feld">
-          <label for="ortsteil">oder aus der Liste</label>
+          <label for="ortsteil"><span class="nur-breit">oder aus der Liste</span><span class="nur-kompakt">Stadtteil</span></label>
           <select id="ortsteil"></select>
         </div>
       </figure>
     </header>
     <div class="panels" id="panels-zeit"></div>
-  </section>
+  </details>
 
   <section class="karte fussnoten">
     <h2>Hinweise zu den Daten</h2>
@@ -547,12 +560,12 @@ function panelLinie(k, nr, div) {
     }
     layout.plot_bgcolor = farbe("--band");
     layout.margin.r = RAND.farbskala;
-    layout.shapes = [];
+    layout.shapes = ortsteilRahmen();
     layout.yaxis = { type: "category", tickfont: { size: 9, color: farbe("--muted") }, showgrid: false, fixedrange: true, automargin: false };
     traces = [{
       type: "heatmap", x: xStops, y: r.z, z, colorscale: skala, ...extra, xgap: 1, ygap: 1, hoverongaps: false,
       customdata: z.map(zeile => zeile.map((v, s) => [D.stops[s].name, D.stops[s].ortsteil, zahl(v)])),
-      hovertemplate: "<b>%{y}</b> · %{customdata[0]}<br>Ortsteil %{customdata[1]}<br>%{customdata[2]}<extra></extra>",
+      hovertemplate: "<b>%{y}</b> · %{customdata[0]}<br>Stadtteil %{customdata[1]}<br>%{customdata[2]}<extra></extra>",
       colorbar: { thickness: 8, outlinewidth: 0, len: 1, x: 1.02, xanchor: "left", y: 0.5,
                   tickfont: { size: 9, color: farbe("--muted") }, separatethousands: true, exponentformat: "none" },
     }];
@@ -563,7 +576,7 @@ function panelLinie(k, nr, div) {
       line: { color: farbe("--series-1"), width: 2, shape: "hvh" },
       marker: { size: 7, color: farbe("--series-1"), line: { color: farbe("--surface"), width: 1.5 } },
       customdata: D.stops.map((s, j) => [s.name, s.ortsteil, wertMitEinheit(k, y[j])]),
-      hovertemplate: "<b>%{customdata[0]}</b><br>Ortsteil %{customdata[1]}<br>%{customdata[2]}<extra></extra>",
+      hovertemplate: "<b>%{customdata[0]}</b><br>Stadtteil %{customdata[1]}<br>%{customdata[2]}<extra></extra>",
     }];
     const stadt = i >= 0 ? r.w[D.stadt][i] : null;
     if (vergleichbar(stadt, y)) {
@@ -595,9 +608,7 @@ function panelLinie(k, nr, div) {
     div.on("plotly_click", ev => {
       const s = D.stops[Math.round(ev.points[0].x) - 1];
       if (!s) return;
-      zustand.ot = s.ortsteil;
-      el("ortsteil").value = s.ortsteil;
-      zeichneZeit();
+      ortsteilWaehlen(s.ortsteil);
     });
     touchSteuerung(div, t => {
       const b = div.getBoundingClientRect(), xa = div._fullLayout.xaxis, ya = div._fullLayout.yaxis;
@@ -611,6 +622,31 @@ function panelLinie(k, nr, div) {
     });
     div._klick = true;
   }
+}
+
+function ortsteilWaehlen(name) {
+  zustand.ot = name;
+  el("ortsteil").value = name;
+  zeichneZeit();
+  aktualisiereRahmen();
+}
+
+// Rahmen um die Heatmap-Spalten des Ortsteils, den die geöffnete Detailansicht zeigt
+function ortsteilRahmen() {
+  if (!el("detail").open) return [];
+  return abschnitte.filter(a => a.ortsteil === zustand.ot).map(a => ({
+    type: "rect", xref: "x", yref: "paper", x0: a.von - 0.5, x1: a.bis + 0.5, y0: 0, y1: 1,
+    fillcolor: "rgba(0,0,0,0)", line: { color: farbe("--text-1"), width: 2 }, layer: "above",
+  }));
+}
+
+function aktualisiereRahmen() {
+  document.querySelectorAll("#panels-linie .diagramm").forEach(div => {
+    if (!div._basis || !div._heatmapZeilen) return;
+    div._basis.shapes = ortsteilRahmen();
+    div._markiert = undefined;   // erzwingt das Neuzeichnen in markiereHaltestelle
+  });
+  markiereHaltestelle(zustand.halt ?? kartenteile.aktuell ?? null);
 }
 
 // ---------- Minikarte ----------
@@ -719,9 +755,7 @@ function zeichneAuswahlkarte() {
     });
     e.addEventListener("mouseleave", () => { e.classList.remove("aktiv"); aktualisiereAuswahlkarte(); });
     e.addEventListener("click", () => {
-      zustand.ot = name;
-      el("ortsteil").value = name;
-      zeichneZeit();
+      ortsteilWaehlen(name);
     });
     svg.append(e);
   });
@@ -734,7 +768,7 @@ function zeichneAuswahlkarte() {
 function aktualisiereAuswahlkarte() {
   auswahlUmriss.element.setAttribute("d", auswahlUmriss.pfade[zustand.ot] || "");
   el("auswahlkarte-text").replaceChildren("Gewählt: ", Object.assign(document.createElement("b"), { textContent: zustand.ot }),
-                                          ". Anderen Ortsteil per Klick auf die Karte wählen.");
+                                          ". Anderen Stadtteil per Klick auf die Karte wählen.");
 }
 
 // Hebt eine Haltestelle in allen Panels hervor: heller Streifen, Name fett.
@@ -909,18 +943,17 @@ function zeichneInfoleiste() {
   };
   const name = Object.assign(document.createElement("div"), { className: "info-name" });
   name.append(Object.assign(document.createElement("b"), { textContent: s.name }),
-              Object.assign(document.createElement("span"), { textContent: `Ortsteil ${s.ortsteil}` }));
+              Object.assign(document.createElement("span"), { textContent: `Stadtteil ${s.ortsteil}` }));
   const kopf = Object.assign(document.createElement("div"), { className: "info-kopf" });
   kopf.append(knopf("◀", "Vorherige Haltestelle", () => zeigeInfoleiste(i - 1, zustand.haltZeit), i === 0), name,
               knopf("▶", "Nächste Haltestelle", () => zeigeInfoleiste(i + 1, zustand.haltZeit), i === D.stops.length - 1),
               knopf("✕", "Schließen", schliesseInfoleiste));
   const zeilen = zustand.auswahl.filter(k => !(zustand.ansicht === "heatmap" && k.typ === "parteien")).map(k => infoZeile(k, s));
   const ortsteil = knopf(`${s.ortsteil} über die Zeit ansehen`, `${s.ortsteil} über die Zeit ansehen`, () => {
-    zustand.ot = s.ortsteil;
-    el("ortsteil").value = s.ortsteil;
-    zeichneZeit();
+    el("detail").open = true;
+    ortsteilWaehlen(s.ortsteil);
     schliesseInfoleiste();
-    el("titel-zeit").closest("section").scrollIntoView({ behavior: "smooth" });
+    el("detail").scrollIntoView({ behavior: "smooth" });
   });
   ortsteil.className = "info-ortsteil";
   box.replaceChildren(kopf, ...zeilen, ortsteil);
@@ -1036,7 +1069,11 @@ function zeichneLinie() {
   el("unter-linie").textContent = zustand.ansicht === "einzeln"
     ? (anordnung.kompakt ? `${bedienhinweis()} Graue Linie: Gesamtstadt.`
        : `Alle Diagramme folgen der Linie von Grünau-Nord (links) nach Paunsdorf Nord (rechts). ${bedienhinweis()} Jedes Diagramm hat seine eigene Skala. Graue Linie: Wert der Gesamtstadt, wenn vergleichbar.`)
-    : `Jede Zeile ein Zeitpunkt, neueste oben. Einfarbig: ${aktuell} = hoher Wert. Hitze: rot = wärmer, blau = kühler als das Stadtmittel.`;
+    : `Jede Zeile ein Zeitpunkt, neueste oben. Einfarbig: ${aktuell} = hoher Wert. Hitze: rot = wärmer, blau = kühler als das Stadtmittel. ${
+        matchMedia("(hover: none)").matches
+          ? "Tippe auf eine Spalte: Über die Leiste unten öffnest du den genauen Verlauf des Stadtteils."
+          : "Ein Klick auf eine Spalte wählt den Stadtteil für „Im Detail“ weiter unten; ist der Bereich geöffnet, zeigt ein Rahmen die gewählten Spalten."}`;
+  el("titel-linie").textContent = zustand.ansicht === "heatmap" ? "Überblick: alle Jahre entlang der Linie 8" : "Entlang der Linie 8";
 }
 
 // Erklärt die Bedienung passend zu Gerät und Anordnung
@@ -1056,7 +1093,7 @@ function bedienhinweis() {
 function zeichneTabelle() {
   const spalten = zustand.auswahl.map(k => ({ k, i: zeitIndex(k) }));
   const kopf = document.createElement("tr");
-  ["Nr.", "Haltestelle", "Ortsteil", "Stadtbezirk",
+  ["Nr.", "Haltestelle", "Stadtteil", "Stadtbezirk",
    ...spalten.map(({ k, i }) => `${k.titel}${k.typ === "parteien" ? ": stärkste Partei" : ` (${k.einheit})`} · ${i >= 0 ? reihe(k).z[i] : "–"}`)]
     .forEach((t, j) => {
       const th = document.createElement("th");
@@ -1134,15 +1171,16 @@ function panelZeit(k, div, hinweis) {
     const grenzen = GRENZJAHRE.filter(j => j >= r.j[0] && j <= r.j[r.j.length - 1]);
     grenzen.forEach(j => layout.shapes.push({ type: "line", xref: "x", yref: "paper", x0: j, x1: j, y0: 0, y1: 1,
                                               line: { color: farbe("--axis"), width: 1 }, layer: "below" }));
-    if (grenzen.length) texte.push(`Senkrechte Linien: Ortsteilgrenzen angepasst (${grenzen.join(", ")}).`);
+    if (grenzen.length) texte.push(`Senkrechte Linien: Stadtteilgrenzen angepasst (${grenzen.join(", ")}).`);
   }
   Plotly.react(div, traces, layout, PLOT_OPTIONEN);
   hinweis.textContent = texte.join(" ");
 }
 
 function zeichneZeit() {
-  el("titel-zeit").textContent = `${zustand.ot} über die Zeit`;
+  el("titel-zeit").textContent = `Im Detail: ${zustand.ot} über die Zeit`;
   if (el("auswahlkarte").childElementCount) aktualisiereAuswahlkarte();
+  if (!el("detail").open) return;
   const ziel = el("panels-zeit");
   if (!zustand.auswahl.length) { ziel.replaceChildren(); ziel.dataset.ids = ""; return; }
   panelsAnlegen(ziel, false);
@@ -1158,21 +1196,22 @@ function zeichneZeit() {
 
 function zeichneFussnoten() {
   const noten = [
-    "Jede Haltestelle zeigt den Wert des Ortsteils, in dem sie liegt. Haltestellen im selben Ortsteil haben deshalb denselben Wert.",
+    "Jede Haltestelle zeigt den Wert des Stadtteils, in dem sie liegt. Haltestellen im selben Stadtteil haben deshalb denselben Wert.",
+    "„Stadtteil“ meint hier die amtlichen Ortsteile der Stadt Leipzig, nicht die größeren Stadtbezirke.",
     "Linienführung: Fahrplan der LVB, Stand Dezember 2022. Sie wird für alle Zeitpunkte verwendet.",
     "Die Kennzahlen liegen zu unterschiedlichen Zeitpunkten vor. Jedes Diagramm zeigt den neuesten Wert bis zum gewählten Jahr.",
   ];
   const hat = b => zustand.auswahl.some(b);
   if (hat(k => k.thema === "Bevölkerung")) noten.push("Einwohner sind Personen mit Hauptwohnsitz. Nebenwohnsitze zählen nicht mit.");
-  if (hat(amtlicheJahresdaten)) noten.push("Die Grenzen einiger Ortsteile wurden 2006, 2012 und 2014 angepasst. Werte davor beziehen sich teils auf den alten Zuschnitt.");
-  if (hat(k => k.umfrage)) noten.push("Einkommen, Hochschulabschluss, Miete und Lebenszufriedenheit beruhen auf der Kommunalen Bürgerumfrage: eine Stichprobe, nur alle zwei Jahre. Pro Ortsteil antworten wenige Menschen, deshalb schwanken die Werte.");
-  if (hat(k => k.id === "sgb2_quote")) noten.push("SGB-II-Quote: Menschen, die Grundsicherung für Arbeitsuchende (Bürgergeld) beziehen, einschließlich ihrer Kinder, geteilt durch alle Einwohner unterhalb des Rentenalters. Rentner zählen nicht mit, weil sie diese Leistung nicht erhalten können. In Ortsteilen mit vielen Älteren liegt die Quote deshalb deutlich über dem Anteil an allen Einwohnern (Schönau 2025: 22 % statt 15 %).");
+  if (hat(amtlicheJahresdaten)) noten.push("Die Grenzen einiger Stadtteile wurden 2006, 2012 und 2014 angepasst. Werte davor beziehen sich teils auf den alten Zuschnitt.");
+  if (hat(k => k.umfrage)) noten.push("Einkommen, Hochschulabschluss, Miete und Lebenszufriedenheit beruhen auf der Kommunalen Bürgerumfrage: eine Stichprobe, nur alle zwei Jahre. Pro Stadtteil antworten wenige Menschen, deshalb schwanken die Werte.");
+  if (hat(k => k.id === "sgb2_quote")) noten.push("SGB-II-Quote: Menschen, die Grundsicherung für Arbeitsuchende (Bürgergeld) beziehen, einschließlich ihrer Kinder, geteilt durch alle Einwohner unterhalb des Rentenalters. Rentner zählen nicht mit, weil sie diese Leistung nicht erhalten können. In Stadtteilen mit vielen Älteren liegt die Quote deshalb deutlich über dem Anteil an allen Einwohnern (Schönau 2025: 22 % statt 15 %).");
   if (hat(k => k.id === "sgb2_kinder")) noten.push("Kinder in SGB II: Anteil der Kinder unter 15 Jahren, die in einem Haushalt mit Grundsicherung leben, an allen Kindern dieses Alters (laut Merkmalsbezeichnung der Quelle, nicht nachgerechnet).");
   if (hat(k => k.id === "migration")) noten.push("Migrationshintergrund: Anteil der Einwohner, die keine deutsche Staatsangehörigkeit haben oder als Deutsche einen Migrationshintergrund haben (Eingebürgerte, Spätaussiedler, Deutsche mit weiterer Staatsangehörigkeit, Kinder mit mindestens einem zugewanderten Elternteil). Ermittelt aus dem Einwohnerregister. Die Quelle nennt das Merkmal „Migrantenanteil“; es umfasst aber auch in Deutschland Geborene, die selbst nie eingewandert sind. Nicht zu verwechseln mit „Einwanderungsgeschichte“ (seit 2023 beim Statistischen Bundesamt), die enger gefasst ist.");
   if (hat(k => k.id === "zufriedenheit")) noten.push("Lebenszufriedenheit ist eine Durchschnittsnote aus der Bürgerumfrage: Je niedriger, desto zufriedener.");
   if (hat(k => k.id === "straftaten")) noten.push("Straftaten werden am Tatort gezählt, aber auf die Einwohner bezogen. In der Innenstadt mit wenigen Einwohnern und vielen Besuchern ergeben sich deshalb sehr hohe Werte (Zentrum: rund 2.800 je 1.000 Einwohner).");
   if (hat(k => k.typ === "parteien")) noten.push("Bundestagswahl: „DIE LINKE“ umfasst bis 2005 die Vorgänger PDS bzw. Linkspartei.PDS. „Sonstige“ ist der Rest zu 100 % und enthält alle Parteien, die die Quelle nicht einzeln ausweist. Fehlt eine Partei, ist sie nicht angetreten.");
-  if (hat(k => k.thema === "Umwelt")) noten.push("Satellitendaten: Landsat 8/9 (USGS), Sommer Juni bis August. Je Jahr der Mittelwert aller wolkenfreien Aufnahmen (1 bis 5 pro Sommer), 2013 und 2021 ohne verwendbare Aufnahme. Berechnet auf die heutigen Ortsteilgrenzen.");
+  if (hat(k => k.thema === "Umwelt")) noten.push("Satellitendaten: Landsat 8/9 (USGS), Sommer Juni bis August. Je Jahr der Mittelwert aller wolkenfreien Aufnahmen (1 bis 5 pro Sommer), 2013 und 2021 ohne verwendbare Aufnahme. Berechnet auf die heutigen Stadtteilgrenzen.");
   if (hat(k => k.id === "hitze")) noten.push("Hitze: gemessen wird die Oberflächentemperatur (Dächer, Asphalt, Wiesen) am Vormittag, nicht die Lufttemperatur. Gezeigt ist die Abweichung vom Stadtmittel am selben Tag, damit Jahre mit unterschiedlichem Wetter vergleichbar sind.");
   if (hat(k => k.thema !== "Umwelt")) noten.push("Die amtliche Statistik liefert keine Einheiten mit. Sie sind hier nach den Merkmalsbeschreibungen ergänzt.");
 
@@ -1263,7 +1302,9 @@ document.querySelectorAll(".karte-schalter").forEach(b => b.addEventListener("cl
 zustand.ot = ortsteile[0];
 
 el("zeit").addEventListener("input", e => { zustand.jahr = jahre()[+e.target.value]; alles(); });
-el("ortsteil").addEventListener("change", e => { zustand.ot = e.target.value; zeichneZeit(); });
+el("ortsteil").addEventListener("change", e => ortsteilWaehlen(e.target.value));
+// Plotly kann in einem geschlossenen Bereich keine Breite messen, deshalb erst beim Öffnen zeichnen
+el("detail").addEventListener("toggle", () => { zeichneZeit(); aktualisiereRahmen(); });
 document.querySelectorAll(".ansicht button").forEach(b => b.addEventListener("click", () => {
   zustand.ansicht = b.dataset.ansicht;
   document.querySelectorAll(".ansicht button").forEach(x => x.setAttribute("aria-pressed", x === b));
@@ -1288,9 +1329,7 @@ el("minikarte").addEventListener("mouseleave", () => karteHover(null));
 el("minikarte").addEventListener("click", ev => {
   const i = haltestelleAnMaus(ev);
   if (i === null) return;
-  zustand.ot = D.stops[i].ortsteil;
-  el("ortsteil").value = zustand.ot;
-  zeichneZeit();
+  ortsteilWaehlen(D.stops[i].ortsteil);
 });
 touchSteuerung(el("minikarte"), t => {
   const i = haltestelleAnMaus(t);
