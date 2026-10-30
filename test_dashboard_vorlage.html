@@ -146,7 +146,19 @@
     display: flex; align-items: center; justify-content: center; text-align: center;
     background: var(--band); border-radius: 8px; color: var(--text-2); font-size: 13px; padding: 16px;
   }
-  @media (max-width: 900px) { .panels { grid-template-columns: minmax(0, 1fr); } .panel-kopf { min-height: 0; } }
+  .panels.gestapelt .panel-kopf { min-height: 0; }
+  /* Touch: senkrecht wischen scrollt die Seite, waagerecht wischen geht durch die Haltestellen */
+  #panels-linie .diagramm, #panels-linie .diagramm *, #minikarte { touch-action: pan-y; }
+  @media (pointer: coarse) {
+    .schalter { padding: 8px 14px; }
+    .ansicht button, .karten-ausschnitt button { padding: 10px 14px; }
+    select { padding: 10px; font-size: 16px; }   /* unter 16 px zoomt iOS beim Antippen in die Seite */
+    .werkzeuge { flex: 1 1 100%; min-width: 0; }
+    .werkzeuge select { flex: 1; width: 0; min-width: 0; max-width: none; padding: 8px; font-size: 16px; }
+    .werkzeuge button { width: 40px; height: 40px; flex: none; font-size: 14px; }
+    .zeit input { height: 32px; }
+    summary { padding: 8px 0; }
+  }
 
   details { margin-top: 8px; }
   summary { cursor: pointer; color: var(--text-2); font-size: 13px; }
@@ -169,6 +181,28 @@
   .wahl-tooltip .balken { display: block; height: 100%; border-radius: 0 2px 2px 0; min-width: 2px; }
   .wahl-tooltip .wert { font-variant-numeric: tabular-nums; text-align: right; font-weight: 600; }
   .wahl-tooltip .fuss { color: var(--text-2); margin-top: 4px; border-top: 1px solid var(--grid); padding-top: 4px; }
+  /* Infoleiste für Touch: ersetzt Tooltips, die einen Mauszeiger voraussetzen */
+  .infoleiste {
+    position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; max-height: 45vh; overflow-y: auto;
+    background: var(--surface); border-top: 1px solid var(--axis); box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18);
+    padding: 8px 16px calc(10px + env(safe-area-inset-bottom)); font-size: 13px;
+  }
+  .info-kopf { display: flex; align-items: center; gap: 6px; }
+  .info-name { flex: 1; min-width: 0; line-height: 1.25; }
+  .info-name span { display: block; color: var(--text-2); font-size: 12px; }
+  .infoleiste button {
+    min-width: 44px; height: 44px; flex: none; border: 1px solid var(--axis); border-radius: 8px;
+    background: var(--surface); cursor: pointer; color: var(--text-1);
+  }
+  .infoleiste button:disabled { opacity: 0.35; }
+  .info-zeile { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; padding: 4px 0; border-top: 1px solid var(--grid); margin-top: 4px; }
+  .info-zeile b { font-variant-numeric: tabular-nums; }
+  .info-stand { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .info-parteien { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 0 10px; font-variant-numeric: tabular-nums; }
+  .info-punkt { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+  .info-ortsteil { width: 100%; margin-top: 6px; font-weight: 600; }
+  body.mit-infoleiste main { padding-bottom: 45vh; }
+
   .fussnoten { color: var(--text-2); font-size: 13px; }
   .fussnoten h2 { color: var(--text-1); margin-bottom: 8px; }
   .fussnoten ul { margin: 0; padding-left: 18px; }
@@ -252,6 +286,7 @@
   </section>
 </main>
 <div class="wahl-tooltip" id="wahl-tooltip" hidden></div>
+<aside class="infoleiste" id="infoleiste" aria-live="polite" hidden></aside>
 
 <script>
 const D = /*DATEN*/null;
@@ -284,6 +319,12 @@ const PLOT_HOEHE = 225;                  // Höhe der Plotfläche, in allen Pane
 const RAND = { t: 64, b: 24, namen: 170, l: 44, namenLinks: 64, r: 12, farbskala: 52 };
 // Gemessen: 9,5 px je Haltestelle, Zeilenhöhe ca. 9 px. Ab etwa 70° überlappen die Namen nicht mehr.
 const NAMEN_WINKEL = -70;
+const PANEL_MINDESTBREITE = 390;         // 33 Haltestellen x 9,5 px plus Ränder: darunter überlappen die schrägen Namen
+const KOMPAKT_UNTER = 780;               // schmaler (Handy, Tablet hochkant): flache Diagramme ohne schräge Namen
+const PLOT_HOEHE_KOMPAKT = 170;
+const RAND_KOMPAKT = { t: 12, b: 22 };
+// Orientierungspunkte auf der Achse der kompakten Ansicht; ab 500 px passen fünf statt drei
+const ORIENTIERUNG = { drei: [0, 16, 32], fuenf: [0, 9, 16, 22, 32] };
 
 const el = id => document.getElementById(id);
 const dunkel = () => matchMedia("(prefers-color-scheme: dark)").matches;
@@ -292,7 +333,18 @@ const parteifarbe = p => typeof PARTEIFARBEN[p] === "string" ? PARTEIFARBEN[p] :
 const divergierend = k => k.id === "hitze";
 const amtlicheJahresdaten = k => k.zeitart === "jahr" && k.thema !== "Umwelt";
 
-const zustand = { auswahl: [], jahr: null, ansicht: "einzeln", ot: null };
+const zustand = { auswahl: [], jahr: null, ansicht: "einzeln", ot: null, halt: null, haltZeit: null };
+const anordnung = { gestapelt: false, kompakt: false };
+
+// Nebeneinander nur, wenn jedes Panel breit genug für die Haltestellennamen ist. Gibt zurück, ob sich etwas geändert hat.
+function anordnungBerechnen() {
+  const breite = el("panels-linie").clientWidth, n = Math.max(1, zustand.auswahl.length);
+  const gestapelt = n * PANEL_MINDESTBREITE + (n - 1) * 16 > breite, kompakt = breite < KOMPAKT_UNTER;
+  const geaendert = gestapelt !== anordnung.gestapelt || kompakt !== anordnung.kompakt;
+  anordnung.gestapelt = gestapelt;
+  anordnung.kompakt = kompakt;
+  return geaendert;
+}
 
 // ---------- Hilfsfunktionen ----------
 
@@ -360,24 +412,45 @@ function grundlayout(hoehe) {
     hoverlabel: { bgcolor: farbe("--surface"), bordercolor: farbe("--axis"), font: { family: SCHRIFT, color: farbe("--text-1") } },
     shapes: [],
     annotations: [],
+    dragmode: false,
   };
 }
 
 // ---------- Panels entlang der Linie: Haltestellen waagerecht, Gipfel und Täler senkrecht ----------
 
-function layoutLinie(nr) {
-  const erstes = nr === 0;
-  // Nur das erste Panel trägt die Haltestellennamen, die anderen zeigen sie beim Darüberfahren.
+// Maße eines Panels. Nebeneinander trägt das erste Panel die Haltestellennamen, gestapelt das unterste, kompakt keines.
+function masseLinie(k, nr) {
+  if (anordnung.kompakt) return { plot: PLOT_HOEHE_KOMPAKT, t: k.typ === "parteien" ? RAND.t : RAND_KOMPAKT.t,
+                                  unten: RAND_KOMPAKT.b, l: RAND.l, namen: false };
+  const namen = anordnung.gestapelt ? nr === zustand.auswahl.length - 1 : nr === 0;
+  // Schräge Namen ragen nach links unten. Gestapelt bekommen alle den breiten Rand, damit die Haltestellen untereinander stehen.
+  return { plot: PLOT_HOEHE, t: RAND.t, unten: namen ? RAND.namen : RAND.b,
+           l: namen || anordnung.gestapelt ? RAND.namenLinks : RAND.l, namen };
+}
+
+function layoutLinie(k, nr) {
+  const m = masseLinie(k, nr);
+  // Die anderen Panels zeigen die Namen beim Darüberfahren.
   // Die Plotfläche ist überall gleich hoch und beginnt auf derselben Höhe.
-  const unten = erstes ? RAND.namen : RAND.b;
-  const layout = grundlayout(PLOT_HOEHE + RAND.t + unten);
-  // Schräge Namen ragen nach links unten, deshalb braucht das erste Panel links mehr Platz
-  layout.margin = { l: erstes ? RAND.namenLinks : RAND.l, r: RAND.r, t: RAND.t, b: unten, autoexpand: false };
+  const layout = grundlayout(m.plot + m.t + m.unten);
+  layout.margin = { l: m.l, r: RAND.r, t: m.t, b: m.unten, autoexpand: false };
   layout.xaxis = {
     range: [0.5, D.stops.length + 0.5], tickvals: xStops, ticktext: D.stops.map(s => s.name),
-    showticklabels: erstes, tickangle: NAMEN_WINKEL, tickfont: { size: 9, color: farbe("--text-2") },
+    showticklabels: m.namen, tickangle: NAMEN_WINKEL, tickfont: { size: 9, color: farbe("--text-2") },
     showgrid: false, zeroline: false, linecolor: farbe("--axis"), fixedrange: true, automargin: false,
   };
+  if (anordnung.kompakt) {
+    const punkte = el("panels-linie").clientWidth >= 500 ? ORIENTIERUNG.fuenf : ORIENTIERUNG.drei;
+    layout.xaxis.tickvals = punkte.map(i => i + 1);
+    layout.xaxis.ticks = "outside";
+    layout.xaxis.ticklen = 3;
+    layout.xaxis.tickcolor = farbe("--axis");
+    punkte.forEach((i, j) => layout.annotations.push({
+      xref: "x", yref: "paper", x: i + 1, y: 0, yanchor: "top", yshift: -3, showarrow: false,
+      xanchor: j === 0 ? "left" : j === punkte.length - 1 ? "right" : "center",
+      text: D.stops[i].name, font: { size: 10, color: farbe("--text-2") },
+    }));
+  }
   layout.yaxis = { gridcolor: farbe("--grid"), zeroline: false, tickfont: { size: 10, color: farbe("--muted") },
                    fixedrange: true, automargin: false, separatethousands: true, exponentformat: "none" };
   // Ortsteile als Bänder im Hintergrund, in allen Panels gleich
@@ -392,7 +465,7 @@ function layoutLinie(nr) {
 
 function panelLinie(k, nr, div) {
   const r = reihe(k), i = zeitIndex(k);
-  const layout = layoutLinie(nr);
+  const layout = layoutLinie(k, nr);
   let traces;
 
   if (k.typ === "parteien") {
@@ -456,10 +529,11 @@ function panelLinie(k, nr, div) {
 
   // Bei Linie und Säulen reicht es, irgendwo über der Haltestelle zu sein
   layout.hovermode = zustand.ansicht === "heatmap" && k.typ !== "parteien" ? "closest" : "x";
-  div._basis = { shapes: layout.shapes, annotations: layout.annotations, ticktext: layout.xaxis.ticktext, erstes: nr === 0,
+  div._basis = { shapes: layout.shapes, annotations: layout.annotations, ticktext: layout.xaxis.ticktext, mitNamen: layout.xaxis.showticklabels,
                  saeulen: k.typ === "parteien" };
   div._markiert = null;
   div._wahl = k.typ === "parteien" ? k : null;
+  div._heatmapZeilen = zustand.ansicht === "heatmap" && k.typ !== "parteien" ? r.z : null;
   Plotly.react(div, traces, layout, PLOT_OPTIONEN);
   // Klick auf eine Haltestelle wählt ihren Ortsteil für die Zeitdiagramme
   if (!div._klick) {
@@ -475,6 +549,16 @@ function panelLinie(k, nr, div) {
       zustand.ot = s.ortsteil;
       el("ortsteil").value = s.ortsteil;
       zeichneZeit();
+    });
+    touchSteuerung(div, t => {
+      const b = div.getBoundingClientRect(), xa = div._fullLayout.xaxis, ya = div._fullLayout.yaxis;
+      const py = t.clientY - b.top - ya._offset;
+      if (py < 0 || py > ya._length) return null;   // Legende und Ränder bleiben bei Plotly
+      return () => {
+        const i = Math.round(xa.p2c(t.clientX - b.left - xa._offset)) - 1;
+        const zeile = div._heatmapZeilen?.[Math.round(ya.p2c(py))];
+        zeigeInfoleiste(Math.max(0, Math.min(D.stops.length - 1, i)), zeile ?? null);
+      };
     });
     div._klick = true;
   }
@@ -605,7 +689,8 @@ function aktualisiereAuswahlkarte() {
 }
 
 // Hebt eine Haltestelle in allen Panels hervor: heller Streifen, Name fett.
-// Im ersten Panel wird die Achsenbeschriftung fett, in den anderen erscheint der Name unter der Achse.
+// Im Panel mit den Namen wird die Achsenbeschriftung fett, in den anderen erscheint der Name unter der Achse.
+// In der kompakten Ansicht ist dafür kein Platz: Dort steht der Name im Hover-Text oder in der Infoleiste.
 function markiereHaltestelle(i) {
   if (kartenteile.aktuell !== i) aktualisiereMinikarte(i);
   document.querySelectorAll("#panels-linie .diagramm").forEach(div => {
@@ -621,9 +706,9 @@ function markiereHaltestelle(i) {
             fillcolor: "rgba(0,0,0,0)", line: { color: farbe("--text-1"), width: 2 }, layer: "above" }
         : { type: "rect", xref: "x", yref: "paper", x0: i + 0.5, x1: i + 1.5, y0: 0, y1: 1,
             fillcolor: farbe("--accent-wash"), opacity: 0.7, line: { width: 0 }, layer: "below" });
-      if (b.erstes) {
+      if (b.mitNamen) {
         ticktext = b.ticktext.map((t, j) => j === i ? `<b>${t}</b>` : t);
-      } else {
+      } else if (!anordnung.kompakt) {
         annotations.push({ xref: "x", yref: "paper", x: i + 1, y: 0, yanchor: "top", yshift: -2,
                            text: `<b>${D.stops[i].name}</b>`, showarrow: false,
                            font: { size: 10, color: farbe("--text-1") }, bgcolor: farbe("--surface") });
@@ -660,7 +745,7 @@ function zeigeWahlTooltip(k, i, mausX, mausY) {
   box.hidden = false;
   // Neben den Mauszeiger, am Fensterrand auf die andere Seite
   const b = box.getBoundingClientRect();
-  box.style.left = (mausX + 16 + b.width > innerWidth ? mausX - 16 - b.width : mausX + 16) + "px";
+  box.style.left = Math.max(8, mausX + 16 + b.width > innerWidth ? mausX - 16 - b.width : mausX + 16) + "px";
   box.style.top = Math.max(8, Math.min(mausY - b.height / 2, innerHeight - b.height - 8)) + "px";
 }
 
@@ -682,10 +767,123 @@ function kennzahlenZeile(k) {
   return teile;
 }
 
+// ---------- Touch: Infoleiste statt Tooltip ----------
+
+// Tippen und waagerechtes Wischen wählen eine Haltestelle, senkrechtes Wischen scrollt die Seite.
+// treffer(touch) gibt eine Aktion zurück oder null, wenn die Berührung nicht zu diesem Bereich gehört.
+function touchSteuerung(e, treffer) {
+  let start = null, wischt = false, bewegt = false;
+  e.addEventListener("touchstart", ev => {
+    start = null;
+    const t = ev.touches[0];
+    if (ev.touches.length !== 1 || !treffer(t)) return;
+    ev.stopPropagation();   // sonst fängt Plotly die Berührung ab und die Seite scrollt nicht
+    start = { x: t.clientX, y: t.clientY };
+    wischt = bewegt = false;
+  }, { capture: true, passive: true });
+  e.addEventListener("touchmove", ev => {
+    if (!start) return;
+    ev.stopPropagation();
+    const t = ev.touches[0], dx = Math.abs(t.clientX - start.x), dy = Math.abs(t.clientY - start.y);
+    if (dx > 10 || dy > 10) bewegt = true;
+    if (!wischt && dx > 8 && dx > dy) wischt = true;
+    if (!wischt) return;
+    if (ev.cancelable) ev.preventDefault();
+    treffer(t)?.();
+  }, { capture: true, passive: false });
+  e.addEventListener("touchend", ev => {
+    if (!start) return;
+    ev.stopPropagation();
+    if (!wischt && !bewegt) {
+      ev.preventDefault();   // keine nachgeahmten Mausereignisse: Tippen soll nicht zusätzlich den Ortsteil wechseln
+      treffer(ev.changedTouches[0])?.();
+    }
+    start = null;
+  }, { capture: true, passive: false });
+  e.addEventListener("touchcancel", () => { start = null; }, { capture: true, passive: true });
+}
+
+function zeigeInfoleiste(i, zeile) {
+  if (zustand.halt === i && zustand.haltZeit === zeile) return;
+  zustand.halt = i;
+  zustand.haltZeit = zeile;
+  markiereHaltestelle(i);
+  zeichneInfoleiste();
+}
+
+function schliesseInfoleiste() {
+  zustand.halt = zustand.haltZeit = null;
+  markiereHaltestelle(null);
+  el("infoleiste").hidden = true;
+  document.body.classList.remove("mit-infoleiste");
+}
+
+// In der Heatmap gilt die angetippte Zeile, sonst das gewählte Jahr
+function infoZeit(k) {
+  const t = zustand.ansicht === "heatmap" && zustand.haltZeit !== null ? reihe(k).z.indexOf(zustand.haltZeit) : -1;
+  return t >= 0 ? t : zeitIndex(k);
+}
+
+function infoZeile(k, s) {
+  const r = reihe(k), t = infoZeit(k);
+  const z = Object.assign(document.createElement("div"), { className: "info-zeile" });
+  z.append(Object.assign(document.createElement("span"), { textContent: k.titel }));
+  const stand = Object.assign(document.createElement("span"), { className: "info-stand", textContent: t < 0 ? "kein Wert" : ` ${r.z[t]}` });
+  if (t < 0) { z.append(stand); return z; }
+  if (k.typ === "parteien") {
+    const parteien = Object.assign(document.createElement("div"), { className: "info-parteien" });
+    r.parteien.filter(p => r.w[p][s.ortsteil][t] !== null)
+      .sort((a, b) => r.w[b][s.ortsteil][t] - r.w[a][s.ortsteil][t])
+      .forEach(p => {
+        const e = document.createElement("span"), punkt = Object.assign(document.createElement("span"), { className: "info-punkt" });
+        punkt.style.background = parteifarbe(p);
+        e.append(punkt, `${p} `, Object.assign(document.createElement("b"), { textContent: zahl(r.w[p][s.ortsteil][t]) }));
+        parteien.append(e);
+      });
+    z.append(stand, parteien, Object.assign(document.createElement("span"), { className: "info-stand",
+      textContent: `Wahlbeteiligung ${zahl(r.beteiligung[s.ortsteil][t])} %` }));
+    return z;
+  }
+  const wertText = document.createElement("span");
+  wertText.append(Object.assign(document.createElement("b"), { textContent: `${zahl(r.w[s.ortsteil][t])} ${k.einheit}` }), stand);
+  z.append(wertText);
+  return z;
+}
+
+function zeichneInfoleiste() {
+  const i = zustand.halt, s = D.stops[i], box = el("infoleiste");
+  const knopf = (text, label, aktion, gesperrt) => {
+    const b = Object.assign(document.createElement("button"), { type: "button", textContent: text, disabled: !!gesperrt });
+    b.setAttribute("aria-label", label);
+    b.addEventListener("click", aktion);
+    return b;
+  };
+  const name = Object.assign(document.createElement("div"), { className: "info-name" });
+  name.append(Object.assign(document.createElement("b"), { textContent: s.name }),
+              Object.assign(document.createElement("span"), { textContent: `Ortsteil ${s.ortsteil}` }));
+  const kopf = Object.assign(document.createElement("div"), { className: "info-kopf" });
+  kopf.append(knopf("◀", "Vorherige Haltestelle", () => zeigeInfoleiste(i - 1, zustand.haltZeit), i === 0), name,
+              knopf("▶", "Nächste Haltestelle", () => zeigeInfoleiste(i + 1, zustand.haltZeit), i === D.stops.length - 1),
+              knopf("✕", "Schließen", schliesseInfoleiste));
+  const zeilen = zustand.auswahl.filter(k => !(zustand.ansicht === "heatmap" && k.typ === "parteien")).map(k => infoZeile(k, s));
+  const ortsteil = knopf(`${s.ortsteil} über die Zeit ansehen`, `${s.ortsteil} über die Zeit ansehen`, () => {
+    zustand.ot = s.ortsteil;
+    el("ortsteil").value = s.ortsteil;
+    zeichneZeit();
+    schliesseInfoleiste();
+    el("titel-zeit").closest("section").scrollIntoView({ behavior: "smooth" });
+  });
+  ortsteil.className = "info-ortsteil";
+  box.replaceChildren(kopf, ...zeilen, ortsteil);
+  box.hidden = false;
+  document.body.classList.add("mit-infoleiste");
+}
+
 function panelsAnlegen(ziel, mitKennzahlen) {
+  ziel.style.setProperty("--n", anordnung.gestapelt ? 1 : Math.max(1, zustand.auswahl.length));
+  ziel.classList.toggle("gestapelt", anordnung.gestapelt);
   const ids = zustand.auswahl.map(k => k.id).join(",");
   if (ziel.dataset.ids === ids) return;
-  ziel.style.setProperty("--n", Math.max(1, zustand.auswahl.length));
   ziel.replaceChildren(...zustand.auswahl.map(() => {
     const p = document.createElement("div");
     p.className = "panel";
@@ -717,8 +915,16 @@ function werkzeugeAktualisieren(p, k, nr) {
     });
     return g;
   }));
-  w.querySelector('[data-aktion="links"]').disabled = nr === 0;
-  w.querySelector('[data-aktion="rechts"]').disabled = nr === zustand.auswahl.length - 1;
+  // Gestapelt zeigen die Pfeile nach oben und unten, die Reihenfolge bleibt dieselbe
+  const pfeil = (aktion, zeichen, richtung, gesperrt) => {
+    const b = w.querySelector(`[data-aktion="${aktion}"]`);
+    b.textContent = zeichen;
+    b.title = `Nach ${richtung} verschieben`;
+    b.setAttribute("aria-label", b.title);
+    b.disabled = gesperrt;
+  };
+  pfeil("links", anordnung.gestapelt ? "▲" : "◀", anordnung.gestapelt ? "oben" : "links", nr === 0);
+  pfeil("rechts", anordnung.gestapelt ? "▼" : "▶", anordnung.gestapelt ? "unten" : "rechts", nr === zustand.auswahl.length - 1);
   if (w._verdrahtet) return;
   w._verdrahtet = true;
   // nr aus der aktuellen Position im DOM lesen, nicht aus der Closure (Panels werden neu sortiert)
@@ -737,7 +943,9 @@ function werkzeugeAktualisieren(p, k, nr) {
 
 function zeichneLinie() {
   const ziel = el("panels-linie");
+  anordnungBerechnen();
   if (!zustand.auswahl.length) {
+    if (zustand.halt !== null) schliesseInfoleiste();
     ziel.dataset.ids = "";
     ziel.replaceChildren(Object.assign(document.createElement("p"), { className: "leer", textContent: "Noch keine Kennzahl gewählt. Wähle oben bis zu drei aus." }));
     return;
@@ -766,17 +974,29 @@ function zeichneLinie() {
     hinweis.hidden = !keineDarstellung;
     if (keineDarstellung) {
       // Platzhalter so hoch wie die Plotfläche der anderen Diagramme
-      hinweis.style.height = `${PLOT_HOEHE + RAND.t + (nr === 0 ? RAND.namen : RAND.b)}px`;
+      const m = masseLinie(k, nr);
+      hinweis.style.height = `${m.plot + m.t + m.unten}px`;
       hinweis.textContent = "Keine Darstellung möglich: Wahlergebnisse bestehen aus mehreren Parteien je Haltestelle und lassen sich nicht als Heatmap zeigen. Zum Ansehen auf „Ein Zeitpunkt“ wechseln.";
       div._basis = null;   // nicht an der gemeinsamen Hervorhebung teilnehmen
     } else {
       panelLinie(k, nr, div);
     }
   });
+  if (zustand.halt !== null) { markiereHaltestelle(zustand.halt); zeichneInfoleiste(); }
   const [, aktuell] = dunkel() ? ["dunkel", "hell"] : ["hell", "dunkel"];
   el("unter-linie").textContent = zustand.ansicht === "einzeln"
-    ? "Alle Diagramme folgen der Linie von Grünau-Nord (links) nach Paunsdorf Nord (rechts). Mit ◀ ▶ lassen sich Diagramme verschieben, über die Auswahlliste ersetzen. Haltestellennamen stehen unter dem ersten Diagramm. Beim Darüberfahren wird die Haltestelle in allen Diagrammen hervorgehoben. Jedes Diagramm hat seine eigene Skala. Graue Linie: Wert der Gesamtstadt, wenn vergleichbar."
+    ? `Alle Diagramme folgen der Linie von Grünau-Nord (links) nach Paunsdorf Nord (rechts). ${bedienhinweis()} Jedes Diagramm hat seine eigene Skala. Graue Linie: Wert der Gesamtstadt, wenn vergleichbar.`
     : `Jede Zeile ein Zeitpunkt, neueste oben. Einfarbig: ${aktuell} = hoher Wert. Hitze: rot = wärmer, blau = kühler als das Stadtmittel.`;
+}
+
+// Erklärt die Bedienung passend zu Gerät und Anordnung
+function bedienhinweis() {
+  const pfeile = anordnung.gestapelt ? "▲ ▼" : "◀ ▶";
+  const namen = anordnung.kompakt ? "" : anordnung.gestapelt ? " Haltestellennamen stehen unter dem untersten Diagramm." : " Haltestellennamen stehen unter dem ersten Diagramm.";
+  const hervorheben = matchMedia("(hover: none)").matches
+    ? " Tippe auf ein Diagramm oder wische waagerecht: Die Haltestelle wird überall hervorgehoben, unten erscheinen Name und Werte."
+    : " Beim Darüberfahren wird die Haltestelle in allen Diagrammen hervorgehoben.";
+  return `Mit ${pfeile} lassen sich Diagramme verschieben, über die Auswahlliste ersetzen.${namen}${hervorheben}`;
 }
 
 // ---------- Tabelle ----------
@@ -821,7 +1041,12 @@ function zeichneTabelle() {
 function panelZeit(k, div, hinweis) {
   const r = reihe(k);
   const layout = grundlayout(280);
-  layout.margin = { l: 48, r: 110, t: 12, b: 32 };
+  // Kompakt fehlt der Platz für beschriftete Linienenden: Legende darüber
+  layout.margin = anordnung.kompakt ? { l: 48, r: 12, t: k.typ === "parteien" ? 64 : 32, b: 32 } : { l: 48, r: 110, t: 12, b: 32 };
+  if (anordnung.kompakt) {
+    layout.showlegend = true;
+    layout.legend = { orientation: "h", x: 0, xanchor: "left", y: 1.02, yanchor: "bottom", font: { size: 10, color: farbe("--text-2") } };
+  }
   layout.xaxis = { showgrid: false, linecolor: farbe("--axis"), tickfont: { color: farbe("--muted") }, tickformat: "d",
                    range: [Math.min(...r.j) - 0.5, Math.max(...r.j) + 0.5], fixedrange: true };
   layout.yaxis = { gridcolor: farbe("--grid"), zeroline: false, tickfont: { color: farbe("--muted") }, separatethousands: true, exponentformat: "none", fixedrange: true };
@@ -846,7 +1071,7 @@ function panelZeit(k, div, hinweis) {
     else texte.push("Ohne Stadtvergleich (Größenordnung nicht vergleichbar).");
   }
   // Endpunkte direkt beschriften statt Legende
-  traces.forEach(t => {
+  if (!anordnung.kompakt) traces.forEach(t => {
     const i = t.y.map(v => v !== null).lastIndexOf(true);
     if (i >= 0) layout.annotations.push({ xref: "x", yref: "y", x: t.x[i], y: t.y[i], xanchor: "left", yanchor: "middle",
       text: `  ${t.name} ${zahl(t.y[i])}`, showarrow: false, font: { size: 10, color: farbe("--text-2") } });
@@ -1006,6 +1231,12 @@ el("minikarte").addEventListener("click", ev => {
   el("ortsteil").value = zustand.ot;
   zeichneZeit();
 });
+touchSteuerung(el("minikarte"), t => {
+  const i = haltestelleAnMaus(t);
+  return i === null ? null : () => zeigeInfoleiste(i, null);
+});
+// Über Schwellen hinweg (Drehen des Geräts, Fenstergröße) neu zeichnen: Spalten, Höhen und Achsen ändern sich
+addEventListener("resize", () => { if (anordnungBerechnen()) alles(); });
 document.querySelectorAll(".karten-ausschnitt button").forEach(b => b.addEventListener("click", () => setzeAusschnitt(b.dataset.ausschnitt)));
 if (["einzeln", "heatmap"].includes(start.get("ansicht"))) {
   zustand.ansicht = start.get("ansicht");
