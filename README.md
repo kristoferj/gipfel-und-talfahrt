@@ -206,4 +206,4 @@ So wird die Linie bestimmt (gilt auch für das Dashboard):
 
 ## Entstehung
 
-Das Projekt stammt von Kristofer Jachnow. Bei Code, Dashboard und Dokumentation hat mich der KI-Assistent [Claude Code](https://claude.com/claude-code) von Anthropic unterstützt. Fragestellung und inhaltliche Entscheidungen liegen bei mir.
+Das Projekt stammt von Kristofer Jachnow. Bei der Umsetzung hat mich Claude Code unterstützt. Fragestellung, inhaltliche und konzeptuelle Entscheidungen liegen bei mir.
