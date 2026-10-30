@@ -147,6 +147,44 @@
     background: var(--band); border-radius: 8px; color: var(--text-2); font-size: 13px; padding: 16px;
   }
   .panels.gestapelt .panel-kopf { min-height: 0; }
+
+  /* Kompakte Ansicht: Diagramme nach vorn, Auswahl und Karten eingeklappt, Jahresregler läuft mit */
+  .waehler-schalter, .karte-schalter { display: none; }
+  body.kompakt .waehler-kopf { display: none; }
+  body.kompakt .waehler-schalter, body.kompakt .karte-schalter {
+    display: flex; justify-content: space-between; gap: 12px; align-items: center; width: 100%; min-height: 44px;
+    padding: 8px 12px; border: 1px solid var(--axis); border-radius: 8px; background: var(--surface);
+    cursor: pointer; text-align: left; font-size: 13px;
+  }
+  body.kompakt .waehler-schalter::after, body.kompakt .karte-schalter::after { content: "▾"; color: var(--text-2); }
+  body.kompakt [aria-expanded="true"]::after { content: "▴"; }
+  body.kompakt .waehler.zu .themen, body.kompakt .waehler.zu .waehler-legende { display: none; }
+  body.kompakt .minikarte { width: 100%; }
+  body.kompakt .minikarte.zu svg, body.kompakt .minikarte.zu figcaption, body.kompakt .minikarte.zu .karten-ausschnitt { display: none; }
+  body.kompakt .minikarte svg { margin-top: 8px; }
+  /* Zuerst die Liste, die Karte zum Auswählen ist optional */
+  body.kompakt .minikarte .feld { margin-bottom: 8px; }
+  body.kompakt .minikarte:has(.feld) { display: flex; flex-direction: column; }
+  body.kompakt .minikarte .feld { order: -1; }
+  body.kompakt .karte > header.mit-karte { flex-wrap: wrap; }
+  /* Ohne eigene Box wird main zum Bezugsrahmen, nur so läuft der Regler über die ganze Seite mit */
+  body.kompakt .filter { display: contents; }
+  body.kompakt .feld:has(.ansicht) { margin-bottom: 8px; }
+  body.kompakt .ansicht button { flex: 1; }
+  body.kompakt #ansicht-label { display: none; }
+  body.kompakt main { padding-top: 12px; }
+  body.kompakt .lead-zusatz { display: none; }
+  /* Die Auswahlliste nennt die Kennzahl schon */
+  body.kompakt #panels-linie h3 { display: none; }
+  body.kompakt #zeit-feld {
+    position: sticky; top: 0; z-index: 5; margin: 0 -16px 8px; padding: 4px 16px;
+    background: var(--page); border-bottom: 1px solid var(--border);
+  }
+  body.kompakt #zeit-feld label {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
+  }
+  body.kompakt .heatmap-hinweis { margin-bottom: 8px; padding: 0; }
+  body.kompakt .karte { scroll-margin-top: 52px; }
   /* Touch: senkrecht wischen scrollt die Seite, waagerecht wischen geht durch die Haltestellen */
   #panels-linie .diagramm, #panels-linie .diagramm *, #minikarte { touch-action: pan-y; }
   @media (pointer: coarse) {
@@ -214,10 +252,11 @@
 <main>
   <span class="projekt-hinweis">Portfolio-Projekt · Daten: Stadt Leipzig, Landsat (USGS)</span>
   <h1>Gipfel und Talfahrt der Linie 8</h1>
-  <p class="lead">Von Grünau-Nord nach Paunsdorf Nord: Wie verändert sich Leipzig von Haltestelle zu Haltestelle? Wähle bis zu drei Kennzahlen und ein Jahr.</p>
+  <p class="lead">Von Grünau-Nord nach Paunsdorf Nord: Wie verändert sich Leipzig von Haltestelle zu Haltestelle? <span class="lead-zusatz">Wähle bis zu drei Kennzahlen und ein Jahr.</span></p>
 
-  <div class="waehler">
+  <div class="waehler zu" id="waehler">
     <div class="waehler-kopf" id="waehler-kopf"></div>
+    <button type="button" class="waehler-schalter" id="waehler-schalter" aria-expanded="false"></button>
     <div class="themen" id="themen"></div>
     <div class="waehler-legende">* beruht auf der Kommunalen Bürgerumfrage: eine Stichprobe, nur alle zwei Jahre erhoben, Werte je Ortsteil schwanken stärker</div>
   </div>
@@ -246,7 +285,8 @@
         <h2>Entlang der Linie 8</h2>
         <p id="unter-linie"></p>
       </div>
-      <figure class="minikarte">
+      <figure class="minikarte zu">
+        <button type="button" class="karte-schalter" aria-expanded="false">Karte der Linie</button>
         <svg id="minikarte" role="img" aria-label="Karte von Leipzig mit der Linie 8 und der aktuellen Haltestelle"></svg>
         <figcaption id="minikarte-text"></figcaption>
         <div class="karten-ausschnitt" role="group" aria-label="Kartenausschnitt">
@@ -268,7 +308,8 @@
         <h2 id="titel-zeit"></h2>
         <p>im Vergleich zur Gesamtstadt, wenn vergleichbar</p>
       </div>
-      <figure class="minikarte">
+      <figure class="minikarte zu">
+        <button type="button" class="karte-schalter" aria-expanded="false">Ortsteil auf der Karte wählen</button>
         <svg id="auswahlkarte" role="img" aria-label="Karte zur Auswahl des Ortsteils"></svg>
         <figcaption id="auswahlkarte-text">Ortsteil per Klick auf die Karte wählen.</figcaption>
         <div class="feld">
@@ -343,6 +384,7 @@ function anordnungBerechnen() {
   const geaendert = gestapelt !== anordnung.gestapelt || kompakt !== anordnung.kompakt;
   anordnung.gestapelt = gestapelt;
   anordnung.kompakt = kompakt;
+  document.body.classList.toggle("kompakt", kompakt);
   return geaendert;
 }
 
@@ -353,6 +395,13 @@ function zahl(v) {
   const a = Math.abs(v);
   const stellen = a >= 100 ? 0 : a >= 10 ? 1 : 2;
   return v.toLocaleString("de-DE", { maximumFractionDigits: stellen });
+}
+
+// Wert mit Einheit. Bei der Hitze steht die Richtung im Text, deshalb ohne Vorzeichen.
+function wertMitEinheit(k, v) {
+  if (v === null || v === undefined) return "–";
+  if (!divergierend(k)) return `${zahl(v)} ${k.einheit}`;
+  return v === 0 ? "im Stadtmittel" : `${zahl(Math.abs(v))} °C ${v > 0 ? "über" : "unter"} Stadtmittel`;
 }
 
 const kennzahl = id => D.kennzahlen.find(k => k.id === id);
@@ -513,8 +562,8 @@ function panelLinie(k, nr, div) {
       type: "scatter", mode: "lines+markers", x: xStops, y, connectgaps: false,
       line: { color: farbe("--series-1"), width: 2, shape: "hvh" },
       marker: { size: 7, color: farbe("--series-1"), line: { color: farbe("--surface"), width: 1.5 } },
-      customdata: D.stops.map((s, j) => [s.name, s.ortsteil, zahl(y[j])]),
-      hovertemplate: `<b>%{customdata[0]}</b><br>Ortsteil %{customdata[1]}<br>%{customdata[2]} ${k.einheit}<extra></extra>`,
+      customdata: D.stops.map((s, j) => [s.name, s.ortsteil, wertMitEinheit(k, y[j])]),
+      hovertemplate: "<b>%{customdata[0]}</b><br>Ortsteil %{customdata[1]}<br>%{customdata[2]}<extra></extra>",
     }];
     const stadt = i >= 0 ? r.w[D.stadt][i] : null;
     if (vergleichbar(stadt, y)) {
@@ -845,7 +894,7 @@ function infoZeile(k, s) {
     return z;
   }
   const wertText = document.createElement("span");
-  wertText.append(Object.assign(document.createElement("b"), { textContent: `${zahl(r.w[s.ortsteil][t])} ${k.einheit}` }), stand);
+  wertText.append(Object.assign(document.createElement("b"), { textContent: wertMitEinheit(k, r.w[s.ortsteil][t]) }), stand);
   z.append(wertText);
   return z;
 }
@@ -985,7 +1034,8 @@ function zeichneLinie() {
   if (zustand.halt !== null) { markiereHaltestelle(zustand.halt); zeichneInfoleiste(); }
   const [, aktuell] = dunkel() ? ["dunkel", "hell"] : ["hell", "dunkel"];
   el("unter-linie").textContent = zustand.ansicht === "einzeln"
-    ? `Alle Diagramme folgen der Linie von Grünau-Nord (links) nach Paunsdorf Nord (rechts). ${bedienhinweis()} Jedes Diagramm hat seine eigene Skala. Graue Linie: Wert der Gesamtstadt, wenn vergleichbar.`
+    ? (anordnung.kompakt ? `${bedienhinweis()} Graue Linie: Gesamtstadt.`
+       : `Alle Diagramme folgen der Linie von Grünau-Nord (links) nach Paunsdorf Nord (rechts). ${bedienhinweis()} Jedes Diagramm hat seine eigene Skala. Graue Linie: Wert der Gesamtstadt, wenn vergleichbar.`)
     : `Jede Zeile ein Zeitpunkt, neueste oben. Einfarbig: ${aktuell} = hoher Wert. Hitze: rot = wärmer, blau = kühler als das Stadtmittel.`;
 }
 
@@ -994,8 +1044,10 @@ function bedienhinweis() {
   const pfeile = anordnung.gestapelt ? "▲ ▼" : "◀ ▶";
   const namen = anordnung.kompakt ? "" : anordnung.gestapelt ? " Haltestellennamen stehen unter dem untersten Diagramm." : " Haltestellennamen stehen unter dem ersten Diagramm.";
   const hervorheben = matchMedia("(hover: none)").matches
-    ? " Tippe auf ein Diagramm oder wische waagerecht: Die Haltestelle wird überall hervorgehoben, unten erscheinen Name und Werte."
+    ? (anordnung.kompakt ? " Tippe auf ein Diagramm oder wische waagerecht, um Haltestelle und Werte zu sehen."
+       : " Tippe auf ein Diagramm oder wische waagerecht: Die Haltestelle wird überall hervorgehoben, unten erscheinen Name und Werte.")
     : " Beim Darüberfahren wird die Haltestelle in allen Diagrammen hervorgehoben.";
+  if (anordnung.kompakt) return hervorheben.trim();
   return `Mit ${pfeile} lassen sich Diagramme verschieben, über die Auswahlliste ersetzen.${namen}${hervorheben}`;
 }
 
@@ -1142,6 +1194,8 @@ function zeichneFussnoten() {
 function zeichneWaehler() {
   const voll = zustand.auswahl.length >= MAX_AUSWAHL;
   el("waehler-kopf").textContent = `Kennzahlen (${zustand.auswahl.length} von maximal ${MAX_AUSWAHL} gewählt)`;
+  el("waehler-schalter").textContent = zustand.auswahl.length
+    ? `Kennzahlen: ${zustand.auswahl.map(k => k.titel).join(", ")}` : "Kennzahlen wählen";
   document.querySelectorAll(".schalter").forEach(b => {
     const an = zustand.auswahl.some(k => k.id === b.dataset.id);
     b.setAttribute("aria-pressed", an);
@@ -1167,6 +1221,7 @@ function hashSchreiben() {
 }
 
 function alles() {
+  anordnungBerechnen();
   zeichneWaehler();
   el("zeit-feld").hidden = zustand.ansicht === "heatmap";
   el("heatmap-hinweis").hidden = zustand.ansicht !== "heatmap";
@@ -1199,6 +1254,12 @@ el("themen").replaceChildren(...themen.map(t => {
   return g;
 }));
 el("ortsteil").replaceChildren(...ortsteile.map(o => new Option(o, o)));
+el("waehler-schalter").addEventListener("click", ev => {
+  ev.currentTarget.setAttribute("aria-expanded", el("waehler").classList.toggle("zu") ? "false" : "true");
+});
+document.querySelectorAll(".karte-schalter").forEach(b => b.addEventListener("click", () => {
+  b.setAttribute("aria-expanded", b.parentElement.classList.toggle("zu") ? "false" : "true");
+}));
 zustand.ot = ortsteile[0];
 
 el("zeit").addEventListener("input", e => { zustand.jahr = jahre()[+e.target.value]; alles(); });
