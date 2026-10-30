@@ -4,6 +4,8 @@ Eine Fahrt durch Leipzigs Unterschiede: Wie verändern sich Sozialstruktur, Bild
 
 Inspiriert von [„M29 – Berlins Buslinie der großen Unterschiede"](https://interaktiv.morgenpost.de/m29/) der Berliner Morgenpost.
 
+**[Zum Dashboard](https://kristoferj.github.io/gipfel-und-talfahrt/)**
+
 > Status: Datenbeschaffung, Aufbereitung und das interaktive Dashboard für Desktop und Mobilgeräte stehen.
 
 ## Schnellstart
@@ -47,7 +49,6 @@ uv sync
 | `dashboard.py` | Erzeugt das Dashboard (Daten zusammenstellen, Vorlage befüllen) |
 | `dashboard_vorlage.html` | HTML-Vorlage des Dashboards: Layout, Diagramme, Karten, Bedienung |
 | `index.html` | Ergebnis von `dashboard.py`, eine einzelne Datei zum Öffnen im Browser |
-| `test_diagramm.py` / `.html` | Erstes Testdiagramm: ein Indikator entlang der Linie |
 | `data/raw/` | Rohdaten (nicht versioniert, außer `download_protokoll.json`) |
 | `data/processed/` | Aufbereitete Daten (nicht versioniert) |
 
@@ -188,17 +189,9 @@ Das Skript wertet alle Landsat-8/9-Aufnahmen aus den Sommermonaten (Juni bis Aug
 
 Die Abweichung vom Stadtmittel macht Jahre mit unterschiedlichem Wetter vergleichbar. Gemessen wird die Temperatur der Oberflächen (Dächer, Asphalt, Wiesen) am Vormittag, nicht die Lufttemperatur. Abgeerntete Felder am Stadtrand werden besonders heiß. 2013 und 2021 gab es keine verwendbare Aufnahme.
 
-## Testdiagramm
+## Linie bestimmen
 
-`test_diagramm.py` war der erste Test, um einen Indikator entlang der Linie zu zeigen. Es nutzt die Rohdaten direkt und ist durch das Dashboard überholt.
-
-```bash
-uv run python test_diagramm.py
-```
-
-Einstellungen stehen oben im Skript unter `EINSTELLUNGEN`: `LINIE`, `UNTERNEHMEN`, `INDIKATOR` (Dateiname in `data/raw/kleinraeumig/`), `MERKMAL` (Wert aus der Spalte `Sachmerkmal`) und `EINHEIT`.
-
-So wird die Linie bestimmt (gilt auch für das Dashboard):
+So werden die Haltestellen der Linie ermittelt:
 
 1. **Linie finden:** über Liniennummer und Verkehrsunternehmen. Der GTFS-Feed enthält den ganzen Mitteldeutschen Verkehrsverbund, es gibt also zum Beispiel auch eine Linie 8 in Halle.
 2. **Haltestellen bestimmen:** Vorlage ist die längste Haltestellenfolge, die am häufigsten gefahren wird. Kurzfahrten und seltene Varianten fallen so heraus.
@@ -207,3 +200,7 @@ So wird die Linie bestimmt (gilt auch für das Dashboard):
 ## Entstehung
 
 Das Projekt stammt von Kristofer Jachnow und ist als Portfolio-Projekt im Rahmen meiner Data-Science-Weiterbildung bei StackFuel entstanden. Dem StackFuel-Team danke ich für wertvolle Hinweise und Anmerkungen. Bei der Umsetzung hat mich Claude Code unterstützt. Fragestellung, inhaltliche und konzeptuelle Entscheidungen liegen bei mir.
+
+## Lizenz
+
+Der Code steht unter der [MIT-Lizenz](LICENSE). Für die Daten gelten die Lizenzen der jeweiligen Quellen, siehe [Datenbeschaffung](#datenbeschaffung).

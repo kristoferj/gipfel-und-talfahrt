@@ -39,7 +39,7 @@ def gtfs_lesen(z: zipfile.ZipFile, datei: str, **kwargs) -> pd.DataFrame:
 
 
 def strecke_bestimmen() -> pd.DataFrame:
-    """Haltestellen der Vorlage-Fahrt mit Ortsteil (Vorgehen wie in test_diagramm.py)."""
+    """Haltestellen der Vorlage-Fahrt mit Ortsteil."""
     with zipfile.ZipFile(RAW / "gtfs/lvb_gtfs.zip") as z:
         agency = gtfs_lesen(z, "agency.txt")
         routes = gtfs_lesen(z, "routes.txt")

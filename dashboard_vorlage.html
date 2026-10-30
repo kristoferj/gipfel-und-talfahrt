@@ -596,6 +596,7 @@ function panelLinie(k, nr, div) {
   div._markiert = null;
   div._wahl = k.typ === "parteien" ? k : null;
   div._heatmapZeilen = zustand.ansicht === "heatmap" && k.typ !== "parteien" ? r.z : null;
+  div.style.height = `${layout.height}px`;   // sonst fällt das Diagramm beim Wechsel der Anordnung auf Höhe 0 zusammen
   Plotly.react(div, traces, layout, PLOT_OPTIONEN);
   // Klick auf eine Haltestelle wählt ihren Ortsteil für die Zeitdiagramme
   if (!div._klick) {
@@ -1173,6 +1174,7 @@ function panelZeit(k, div, hinweis) {
                                               line: { color: farbe("--axis"), width: 1 }, layer: "below" }));
     if (grenzen.length) texte.push(`Senkrechte Linien: Stadtteilgrenzen angepasst (${grenzen.join(", ")}).`);
   }
+  div.style.height = `${layout.height}px`;   // sonst fällt das Diagramm beim Wechsel der Anordnung auf Höhe 0 zusammen
   Plotly.react(div, traces, layout, PLOT_OPTIONEN);
   hinweis.textContent = texte.join(" ");
 }
