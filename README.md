@@ -201,6 +201,8 @@ So werden die Haltestellen der Linie ermittelt:
 
 Das Projekt stammt von Kristofer Jachnow und ist als Portfolio-Projekt im Rahmen meiner Data-Science-Weiterbildung bei StackFuel entstanden. Dem StackFuel-Team danke ich für wertvolle Hinweise und Anmerkungen. Bei der Umsetzung hat mich Claude Code unterstützt. Fragestellung, inhaltliche und konzeptuelle Entscheidungen liegen bei mir.
 
+Kontakt: [LinkedIn](https://www.linkedin.com/in/kristofer-jachnow)
+
 ## Lizenz
 
 Der Code steht unter der [MIT-Lizenz](LICENSE). Für die Daten gelten die Lizenzen der jeweiligen Quellen, siehe [Datenbeschaffung](#datenbeschaffung).
