@@ -206,4 +206,4 @@ So wird die Linie bestimmt (gilt auch für das Dashboard):
 
 ## Entstehung
 
-Das Projekt stammt von Kristofer Jachnow. Bei der Umsetzung hat mich Claude Code unterstützt. Fragestellung, inhaltliche und konzeptuelle Entscheidungen liegen bei mir.
+Das Projekt stammt von Kristofer Jachnow und ist als Portfolio-Projekt im Rahmen meiner Data-Science-Weiterbildung bei StackFuel entstanden. Dem StackFuel-Team danke ich für wertvolle Hinweise und Anmerkungen. Bei der Umsetzung hat mich Claude Code unterstützt. Fragestellung, inhaltliche und konzeptuelle Entscheidungen liegen bei mir.
