@@ -203,3 +203,7 @@ So wird die Linie bestimmt (gilt auch für das Dashboard):
 1. **Linie finden:** über Liniennummer und Verkehrsunternehmen. Der GTFS-Feed enthält den ganzen Mitteldeutschen Verkehrsverbund, es gibt also zum Beispiel auch eine Linie 8 in Halle.
 2. **Haltestellen bestimmen:** Vorlage ist die längste Haltestellenfolge, die am häufigsten gefahren wird. Kurzfahrten und seltene Varianten fallen so heraus.
 3. **Stadtteile zuordnen:** Jede Haltestelle wird per räumlichem Join dem Stadtteil zugeordnet, in dem sie liegt.
+
+## Entstehung
+
+Das Projekt stammt von Kristofer Jachnow. Bei Code, Dashboard und Dokumentation hat mich der KI-Assistent [Claude Code](https://claude.com/claude-code) von Anthropic unterstützt. Fragestellung und inhaltliche Entscheidungen liegen bei mir.
