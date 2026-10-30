@@ -4,7 +4,7 @@ Eine Fahrt durch Leipzigs Unterschiede: Wie verändern sich Sozialstruktur, Bild
 
 Inspiriert von [„M29 – Berlins Buslinie der großen Unterschiede"](https://interaktiv.morgenpost.de/m29/) der Berliner Morgenpost.
 
-> Status: in Arbeit. Datenbeschaffung, Aufbereitung und ein interaktives Test-Dashboard stehen.
+> Status: Datenbeschaffung, Aufbereitung und das interaktive Dashboard für Desktop und Mobilgeräte stehen.
 
 ## Schnellstart
 
@@ -13,7 +13,7 @@ uv sync                                  # Umgebung einrichten
 uv run python download_data.py           # Rohdaten laden (einmalig)
 # 02_aufbereitung.ipynb ausführen          # Statistik aufbereiten -> data/processed/
 uv run python satellit_daten.py          # Satellitendaten auswerten (dauert einige Minuten)
-uv run python test_dashboard.py          # Dashboard erzeugen und im Browser öffnen
+uv run python dashboard.py               # Dashboard erzeugen und im Browser öffnen
 ```
 
 Die Reihenfolge ist wichtig: Das Dashboard braucht die aufbereitete Statistik und die Satellitendaten in `data/processed/`. Rohdaten und aufbereitete Daten sind nicht im Repository enthalten, die Skripte laden sie direkt aus den Originalquellen.
@@ -44,9 +44,9 @@ uv sync
 | `karte_linie_8.html` | Interaktive Karte aus `01_geodaten.ipynb` |
 | `02_aufbereitung.ipynb` | Notebook: bringt alle kleinräumigen Statistiken in ein einheitliches langes Format |
 | `satellit_daten.py` | Wertet Landsat-Satellitendaten aus: Oberflächentemperatur und Vegetation je Stadtteil |
-| `test_dashboard.py` | Erzeugt das Test-Dashboard (Daten zusammenstellen, Vorlage befüllen) |
-| `test_dashboard_vorlage.html` | HTML-Vorlage des Dashboards: Layout, Diagramme, Karten, Bedienung |
-| `test_dashboard.html` | Ergebnis von `test_dashboard.py`, eine einzelne Datei zum Öffnen im Browser |
+| `dashboard.py` | Erzeugt das Dashboard (Daten zusammenstellen, Vorlage befüllen) |
+| `dashboard_vorlage.html` | HTML-Vorlage des Dashboards: Layout, Diagramme, Karten, Bedienung |
+| `index.html` | Ergebnis von `dashboard.py`, eine einzelne Datei zum Öffnen im Browser |
 | `test_diagramm.py` / `.html` | Erstes Testdiagramm: ein Indikator entlang der Linie |
 | `data/raw/` | Rohdaten (nicht versioniert, außer `download_protokoll.json`) |
 | `data/processed/` | Aufbereitete Daten (nicht versioniert) |
@@ -60,7 +60,7 @@ Geodaten Ortsteile ───────┘                          │
                                                      ├─ 02_aufbereitung.ipynb ──> data/processed/kleinraeumig_lang.csv
 Landsat 8/9 (Planetary Computer) ─ satellit_daten.py ─────────────────────────> data/processed/satellit_lang.csv
                                                      │
-                                  test_dashboard.py ─┴─> test_dashboard.html
+                                       dashboard.py ─┴─> index.html
 ```
 
 Alle aufbereiteten Daten haben dasselbe lange Format: eine Zeile pro Gebiet, Merkmal und Zeitpunkt, mit den Spalten `indikator`, `gebiet`, `ebene`, `nummer`, `stadtbezirk`, `merkmal`, `zeitart`, `zeitpunkt`, `datum`, `jahr`, `wert`, `zeichen`, `hinweis`. Beim Einlesen `dtype={"nummer": str, "zeitpunkt": str}` angeben, sonst wird aus der Ortsteilnummer `"05"` die Zahl `5`.
@@ -68,27 +68,28 @@ Alle aufbereiteten Daten haben dasselbe lange Format: eine Zeile pro Gebiet, Mer
 ## Dashboard
 
 ```bash
-uv run python test_dashboard.py
+uv run python dashboard.py
 ```
 
-Das Skript bestimmt die Haltestellen der Linie 8, stellt die Daten für ihre 13 Stadtteile zusammen und schreibt alles in eine einzelne HTML-Datei (`test_dashboard.html`, rund 0,1 MB). Sie öffnet sich im Browser und braucht nur für Plotly eine Internetverbindung.
+Das Skript bestimmt die Haltestellen der Linie 8, stellt die Daten für ihre 13 Stadtteile zusammen und schreibt alles in eine einzelne HTML-Datei (`index.html`, rund 0,1 MB). Sie öffnet sich im Browser und braucht nur für Plotly eine Internetverbindung.
 
 ### Funktionen
 
-- **Bis zu drei Kennzahlen gleichzeitig**, nebeneinander. Die Haltestellen laufen von links (Grünau-Nord) nach rechts (Paunsdorf Nord), sodass Gipfel und Täler sichtbar werden. Jedes Diagramm hat seine eigene Skala.
-- **Reihenfolge:** Im Kopf jedes Diagramms lässt es sich mit ◀ ▶ verschieben, über die Auswahlliste ersetzen oder mit ✕ entfernen.
-- **Ansichten:** „Ein Zeitpunkt“ mit Jahresregler oder „Heatmap“ mit allen Jahren auf einmal (Haltestellen × Zeitpunkte).
+- **Bis zu drei Kennzahlen gleichzeitig**, nebeneinander oder bei wenig Platz untereinander. Die Haltestellen laufen von links (Grünau-Nord) nach rechts (Paunsdorf Nord), sodass Gipfel und Täler sichtbar werden. Jedes Diagramm hat seine eigene Skala.
+- **Reihenfolge:** Im Kopf jedes Diagramms lässt es sich mit ◀ ▶ (untereinander: ▲ ▼) verschieben, über die Auswahlliste ersetzen oder mit ✕ entfernen.
+- **Ansichten:** „Ein Zeitpunkt“ mit Jahresregler oder „Heatmap“ als Überblick über alle Jahre (Haltestellen × Zeitpunkte). Ist die Detailansicht geöffnet, rahmt die Heatmap die Spalten des gewählten Stadtteils ein.
 - **Kennzahlen im Kopf:** Gipfel, Tal, Faktor zwischen beiden und Wert der Gesamtstadt.
-- **Hervorhebung:** Beim Darüberfahren wird die Haltestelle in allen Diagrammen gleichzeitig markiert.
-- **Minikarte:** zeigt die aktuelle Haltestelle und lässt sich selbst überfahren. Umschaltbar zwischen dem Ausschnitt der Linie und ganz Leipzig.
-- **Entwicklung über die Zeit:** Ein Stadtteil im Vergleich zur Gesamtstadt. Gewählt wird er per Klick auf eine zweite Karte, auf eine Haltestelle oder über eine Liste.
-- **Bundestagswahl** als gestapelte Säulen je Haltestelle, mit eigenem Tooltip für alle Parteien.
+- **Hervorhebung:** Beim Darüberfahren, Tippen oder Wischen wird die Haltestelle in allen Diagrammen gleichzeitig markiert.
+- **Minikarte:** zeigt die aktuelle Haltestelle und lässt sich selbst überfahren oder antippen. Umschaltbar zwischen dem Ausschnitt der Linie und ganz Leipzig.
+- **Im Detail (aufklappbar):** Die Entwicklung eines Stadtteils über die Zeit im Vergleich zur Gesamtstadt, standardmäßig eingeklappt. Gewählt wird er per Klick auf eine zweite Karte, auf eine Haltestelle oder über eine Liste.
+- **Mobile Ansicht:** Auf schmalen Bildschirmen sind die Diagramme flacher, Kennzahl-Auswahl und Karten eingeklappt, und der Jahresregler bleibt beim Scrollen sichtbar. Eine Infoleiste ersetzt die Tooltips: Sie zeigt Haltestelle, Stadtteil und alle Werte, und mit ◀ ▶ geht es zur nächsten Haltestelle. Über sie lässt sich auch die Detailansicht öffnen.
+- **Bundestagswahl** als gestapelte Säulen je Haltestelle, mit eigenem Tooltip für alle Parteien (mobil in der Infoleiste).
 - **Fußnoten**, die sich an die gewählten Kennzahlen anpassen, und eine Tabelle mit allen Werten.
 - Helles und dunkles Design folgen der Systemeinstellung. Die aktuelle Auswahl steht in der Adresszeile und lässt sich als Link speichern.
 
 ### Kennzahlen
 
-Aus über 150 aufbereiteten Merkmalen sind 15 Kennzahlen ausgewählt, bevorzugt Quoten, Anteile und Durchschnitte. Absolute Zahlen würden vor allem zeigen, wie groß ein Ortsteil ist.
+Aus über 150 aufbereiteten Merkmalen sind 15 Kennzahlen ausgewählt, bevorzugt Quoten, Anteile und Durchschnitte. Absolute Zahlen würden vor allem zeigen, wie groß ein Stadtteil ist.
 
 | Thema | Kennzahl | Einheit | Zeitraum |
 |---|---|---|---|
@@ -110,11 +111,11 @@ Aus über 150 aufbereiteten Merkmalen sind 15 Kennzahlen ausgewählt, bevorzugt 
 
 \* beruht auf der Kommunalen Bürgerumfrage
 
-Die Auswahl steht als Liste `KENNZAHLEN` oben in `test_dashboard.py`. Ein weiteres Merkmal aufzunehmen heißt, dort eine Zeile mit Indikator, Merkmal und Einheit zu ergänzen.
+Die Auswahl steht als Liste `KENNZAHLEN` oben in `dashboard.py`. Ein weiteres Merkmal aufzunehmen heißt, dort eine Zeile mit Indikator, Merkmal und Einheit zu ergänzen.
 
 ## Hinweise zu den Daten
 
-Diese Punkte erscheinen auch als Fußnoten im Dashboard.
+Die meisten dieser Punkte erscheinen auch als Fußnoten im Dashboard.
 
 - **Einwohner** zählen nur **Hauptwohnsitze** (Datensatz Kategorie 2 / Rubrik 1). Der ähnliche Datensatz „Wohnberechtigte Einwohner“ enthält zusätzlich Nebenwohnsitze und wird bewusst nicht verwendet.
 - **Begriff:** „Stadtteil“ meint die amtlichen Ortsteile der Stadt Leipzig, nicht die größeren Stadtbezirke. In den Quelldaten und im Code heißen sie `Ortsteil`.

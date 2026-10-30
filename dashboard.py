@@ -1,10 +1,10 @@
-"""Test-Dashboard: alle aufbereiteten Indikatoren entlang der Linie 8.
+"""Dashboard: alle aufbereiteten Indikatoren entlang der Linie 8.
 
 Aufruf im Projektordner:
-    uv run python test_dashboard.py
+    uv run python dashboard.py
 
 Voraussetzung: data/processed/ existiert (02_aufbereitung.ipynb ausgeführt).
-Ergebnis: test_dashboard.html (öffnet sich im Browser, braucht Internet für Plotly)
+Ergebnis: index.html (öffnet sich im Browser, braucht Internet für Plotly)
 """
 
 import json
@@ -25,8 +25,8 @@ STADT = "Stadt Leipzig"
 
 RAW = Path("data/raw")
 PROCESSED = Path("data/processed")
-VORLAGE = Path("test_dashboard_vorlage.html")
-ZIEL = Path("test_dashboard.html")
+VORLAGE = Path("dashboard_vorlage.html")
+ZIEL = Path("index.html")
 
 
 # ============================================================
